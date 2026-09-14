@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Backspin">
+  <rect width="32" height="32" rx="7" fill="#E6A62E" />
+  <g transform="translate(4 4)" fill="none" stroke="#1A1206" stroke-width="1.9" stroke-linecap="round">
+    <path d="M17.306 4.422A9.25 9.25 0 1 1 6.694 4.422" />
+    <circle cx="12" cy="12" r="5.4" />
+    <circle cx="12" cy="12" r="1.5" fill="#1A1206" stroke="none" />
+    <path d="M14.357 2.357 18.683 2.456 15.929 6.388Z" fill="#1A1206" stroke="none" />
+  </g>
+</svg>

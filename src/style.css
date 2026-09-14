@@ -1,0 +1,302 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Color tokens. Every themeable color lives here exactly once, as space
+ * separated RGB channels so Tailwind's opacity modifiers keep working
+ * (see the `token()` helper in tailwind.config.js).
+ *
+ * `:root` carries the light theme, `.dark` overrides it. The theme store
+ * (src/stores/theme.ts) toggles the `dark` class on <html>; the inline script
+ * in index.html sets it before the first paint.
+ *
+ * All text tokens meet WCAG AA (>= 4.5:1) on every surface token of the same
+ * theme, `border-strong` and the brand tones meet the 3:1 required for UI
+ * boundaries. src/__tests__/theme-contrast.test.ts checks this on every run.
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --color-background: 246 247 248;
+    --color-surface: 255 255 255;
+    --color-surface-muted: 240 242 244;
+    --color-surface-raised: 230 233 236;
+
+    --color-border: 213 217 222;
+    --color-border-strong: 118 125 135;
+
+    --color-text: 20 22 26;
+    --color-text-secondary: 74 81 90;
+    --color-text-muted: 92 99 108;
+
+    --color-on-primary: 26 18 6;
+    /* Text/icons on a solid success/error/warning fill. */
+    --color-on-status: 255 255 255;
+    --color-brand: 122 82 0;
+    --color-brand-strong: 94 63 0;
+
+    /* Spotify's own green as a line or label, only for the Spotify sign in. */
+    --color-spotify-line: 13 112 56;
+
+    --color-success: 13 112 56;
+    --color-success-surface: 232 247 238;
+    --color-success-border: 185 229 203;
+
+    --color-error: 192 20 42;
+    --color-error-surface: 253 236 238;
+    --color-error-border: 245 194 200;
+
+    --color-warning: 138 80 0;
+    --color-warning-surface: 253 243 226;
+    --color-warning-border: 240 213 163;
+
+    --color-info-surface: 238 241 245;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --color-background: 18 18 18;
+    --color-surface: 24 24 24;
+    --color-surface-muted: 32 32 32;
+    --color-surface-raised: 42 42 42;
+
+    --color-border: 51 51 51;
+    --color-border-strong: 120 120 120;
+
+    --color-text: 255 255 255;
+    --color-text-secondary: 179 179 179;
+    --color-text-muted: 148 148 148;
+
+    --color-on-primary: 26 18 6;
+    --color-on-status: 10 10 10;
+    --color-brand: 233 169 58;
+    --color-brand-strong: 245 196 107;
+
+    --color-spotify-line: 30 215 96;
+
+    --color-success: 63 221 119;
+    --color-success-surface: 15 42 27;
+    --color-success-border: 31 83 52;
+
+    --color-error: 255 123 134;
+    --color-error-surface: 44 20 22;
+    --color-error-border: 92 32 39;
+
+    --color-warning: 255 184 77;
+    --color-warning-surface: 43 33 16;
+    --color-warning-border: 92 71 24;
+
+    --color-info-surface: 30 30 30;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-text font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Playlist names, display names and API error messages come from Spotify and
+       can be a single 100 character token without a space. `break-word` only
+       breaks a word that would otherwise overflow, so normal text is unaffected.
+       The property inherits, so this covers the whole app. */
+    overflow-wrap: break-word;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-strong/60 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-border-strong;
+  }
+}
+
+@layer components {
+  /* Button components */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* The border keeps the amber fill distinguishable from a light page
+     background, where #E6A62E alone only reaches 1.9:1. */
+  .btn-primary {
+    @apply btn bg-primary-500 border border-brand text-on-primary hover:bg-primary-600 hover:border-brand-strong focus:ring-brand;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface text-text border border-border-strong hover:bg-surface-raised focus:ring-brand;
+  }
+
+  .btn-ghost {
+    @apply btn text-text-secondary hover:text-text hover:bg-surface-muted focus:ring-brand;
+  }
+
+  .btn-danger {
+    @apply btn bg-error text-on-status hover:opacity-90 focus:ring-error;
+  }
+
+  /* Sign in with Spotify. The only place Spotify's green is still the fill:
+     the button acts on Spotify's account, so it carries Spotify's color, not
+     the product's. Defined here rather than in a template because the fill is
+     a fixed value and src/__tests__/theme-tokens.test.ts only scans templates. */
+  .btn-spotify {
+    @apply btn bg-spotify border border-spotify-line text-on-spotify hover:bg-spotify-strong focus:ring-spotify-line;
+  }
+
+  /* Card components */
+  .card {
+    @apply bg-surface border border-border rounded-xl p-6 shadow-lg;
+  }
+
+  .card-header {
+    @apply mb-4;
+  }
+
+  .card-title {
+    @apply text-xl font-semibold text-text mb-2;
+  }
+
+  .card-description {
+    @apply text-text-secondary text-sm;
+  }
+
+  /* Numbered step marker in the setup wizard and the guide */
+  .step-number {
+    @apply flex-shrink-0 w-6 h-6 bg-primary-500 text-on-primary rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5;
+  }
+
+  /* Form components */
+  .form-group {
+    @apply mb-4;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-text mb-2;
+  }
+
+  .form-input {
+    @apply w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand;
+  }
+
+  .form-checkbox {
+    @apply w-4 h-4 text-primary-500 bg-surface border border-border-strong rounded focus:ring-brand focus:ring-2;
+  }
+
+  .form-radio {
+    @apply w-4 h-4 text-primary-500 bg-surface border border-border-strong focus:ring-brand focus:ring-2;
+  }
+
+  .form-error {
+    @apply text-error text-sm mt-1;
+  }
+
+  /* Status components */
+  .status-info {
+    @apply bg-info-surface border border-info-border rounded-lg p-4;
+  }
+
+  .status-success {
+    @apply bg-success-surface border border-success-border rounded-lg p-4;
+  }
+
+  .status-warning {
+    @apply bg-warning-surface border border-warning-border rounded-lg p-4;
+  }
+
+  .status-error {
+    @apply bg-error-surface border border-error-border rounded-lg p-4;
+  }
+
+  /* Progress components */
+  .progress-bar {
+    @apply w-full bg-surface-raised rounded-full h-2;
+  }
+
+  .progress-fill {
+    @apply bg-primary-500 h-2 rounded-full transition-all duration-300 ease-out;
+  }
+
+  /* Loading components */
+  .loading-spinner {
+    @apply animate-spin rounded-full border-2 border-border-strong/40 border-t-brand;
+  }
+
+  /* Container */
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-padding {
+    @apply py-12 sm:py-16 lg:py-20;
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand to-brand-strong bg-clip-text text-transparent;
+  }
+
+  /* Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+@layer utilities {
+  /* Custom utilities */
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 16px rgba(230, 166, 46, 0.35);
+  }
+
+  .glow-primary:hover {
+    box-shadow: 0 0 24px rgba(230, 166, 46, 0.5);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

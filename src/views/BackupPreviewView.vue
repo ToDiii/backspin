@@ -1,0 +1,549 @@
+<template>
+  <div class="min-h-screen bg-background">
+    <div class="container-custom section-padding">
+      <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8 animate-fade-in">
+          <h1 class="text-3xl sm:text-4xl font-bold text-text mb-3">
+            📊 Backup-Vorschau
+          </h1>
+          <p class="text-lg text-text-secondary">
+            Wähle aus, was du exportieren möchtest
+          </p>
+        </div>
+
+        <!-- User Info -->
+        <div class="card mb-6 animate-fade-in">
+          <div class="flex items-center space-x-4">
+            <img
+              v-if="user?.images && user.images.length > 0"
+              :src="user.images[0].url"
+              :alt="user.display_name"
+              class="w-14 h-14 rounded-full ring-2 ring-brand/40 flex-shrink-0"
+            >
+            <div v-else class="w-14 h-14 bg-primary-500 rounded-full flex items-center justify-center ring-2 ring-brand/40 flex-shrink-0">
+              <span class="text-xl text-on-primary font-bold">{{ user?.display_name?.charAt(0).toUpperCase() }}</span>
+            </div>
+            <div class="min-w-0">
+              <h2 class="text-lg font-semibold text-text">{{ user?.display_name }}</h2>
+              <p v-if="user?.email" class="text-sm text-text-secondary">{{ user.email }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+          <div class="card text-center px-2 py-4 sm:px-6">
+            <p class="text-2xl font-bold text-brand">{{ allPlaylists.length }}</p>
+            <p class="text-xs text-text-secondary mt-1">Playlists gesamt</p>
+          </div>
+          <div class="card text-center px-2 py-4 sm:px-6">
+            <p class="text-2xl font-bold text-brand">{{ selectedPlaylists.length }}</p>
+            <p class="text-xs text-text-secondary mt-1">Ausgewählt</p>
+          </div>
+          <div class="card text-center px-2 py-4 sm:px-6">
+            <p class="text-2xl font-bold text-brand">{{ selectedTracksCount }}</p>
+            <p class="text-xs text-text-secondary mt-1">Tracks</p>
+          </div>
+        </div>
+
+        <!-- Playlist Selection -->
+        <div class="card mb-6">
+          <div class="card-header">
+            <h2 class="card-title">Playlist-Auswahl</h2>
+            <p class="card-description">
+              {{ ownPlaylistsCount }} eigene Playlists verfügbar für Export
+            </p>
+          </div>
+
+          <!-- Search -->
+          <div class="relative mb-4">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Playlists durchsuchen..."
+              class="form-input pl-10 pr-10"
+            >
+            <button
+              v-if="searchQuery"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text transition-colors"
+              @click="searchQuery = ''"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Select All/None -->
+          <div class="flex gap-3 mb-4">
+            <button class="btn-secondary text-sm" @click="selectAllPlaylists">
+              Alle auswählen
+            </button>
+            <button class="btn-secondary text-sm" @click="deselectAllPlaylists">
+              Alle abwählen
+            </button>
+          </div>
+
+          <!-- Playlist List -->
+          <div class="relative">
+            <div class="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
+              <!-- Empty state -->
+              <div v-if="filteredPlaylists.length === 0" class="text-center py-12 text-text-secondary">
+                <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <p class="font-medium">Keine Playlists gefunden</p>
+                <p class="text-sm mt-1">Versuche einen anderen Suchbegriff</p>
+              </div>
+
+              <!-- Playlist Row -->
+              <div
+                v-for="playlist in filteredPlaylists"
+                :key="playlist.id"
+                class="rounded-xl border transition-all duration-200"
+                :class="{
+                  'border-brand bg-primary-500/10': selectedPlaylists.includes(playlist.id),
+                  'border-border hover:border-brand/50 hover:bg-surface-muted': !selectedPlaylists.includes(playlist.id)
+                }"
+              >
+                <!-- Main Row -->
+                <div
+                  class="flex items-center gap-3 p-3 cursor-pointer"
+                  @click="togglePlaylistSelection(playlist.id)"
+                >
+                  <!-- Playlist Cover -->
+                  <div class="relative flex-shrink-0">
+                    <img
+                      v-if="playlist.images && playlist.images.length > 0"
+                      :src="playlist.images[0].url"
+                      :alt="playlist.name"
+                      class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shadow-md"
+                    >
+                    <div v-else class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-surface-raised flex items-center justify-center shadow-md">
+                      <svg class="w-6 h-6 text-text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      </svg>
+                    </div>
+                    <!-- Selected Checkmark Overlay -->
+                    <div
+                      v-if="selectedPlaylists.includes(playlist.id)"
+                      class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center shadow"
+                    >
+                      <svg class="w-3 h-3 text-on-primary" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Playlist Info -->
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-text truncate">{{ playlist.name }}</h3>
+                    <p class="text-sm text-text-secondary">
+                      {{ playlist.tracks?.total || 0 }} Tracks ·
+                      <span>{{ playlist.public ? 'Öffentlich' : 'Privat' }}</span>
+                      <span v-if="playlist.collaborative"> · Kollaborativ</span>
+                      <span class="sm:hidden"> · {{ formatDuration(playlist.tracks?.total || 0) }}</span>
+                    </p>
+                    <p v-if="playlist.description" class="text-xs text-text-secondary truncate mt-0.5 opacity-70">
+                      {{ playlist.description }}
+                    </p>
+                  </div>
+
+                  <!-- Duration & Expand -->
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <span class="hidden sm:inline text-xs text-text-secondary">{{ formatDuration(playlist.tracks?.total || 0) }}</span>
+                    <button
+                      v-if="playlist.tracks?.items && playlist.tracks.items.length > 0"
+                      class="p-1 rounded-md text-text-secondary hover:text-text hover:bg-surface-raised transition-all"
+                      :title="expandedPlaylists.includes(playlist.id) ? 'Tracks ausblenden' : 'Tracks anzeigen'"
+                      @click.stop="toggleExpanded(playlist.id)"
+                    >
+                      <svg
+                        class="w-4 h-4 transition-transform duration-200"
+                        :class="{ 'rotate-180': expandedPlaylists.includes(playlist.id) }"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Track Preview Panel -->
+                <div
+                  v-if="expandedPlaylists.includes(playlist.id) && playlist.tracks?.items"
+                  class="border-t border-border px-3 pb-3 animate-slide-up"
+                >
+                  <div class="space-y-1 mt-2">
+                    <div
+                      v-for="(entry, index) in previewEntries(playlist)"
+                      :key="entry.key"
+                      class="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-raised transition-colors"
+                    >
+                      <!-- Track Number -->
+                      <span class="text-xs text-text-secondary w-4 text-center flex-shrink-0">{{ index + 1 }}</span>
+
+                      <!-- Album Cover -->
+                      <img
+                        v-if="entry.imageUrl"
+                        :src="entry.imageUrl"
+                        :alt="entry.name"
+                        class="w-9 h-9 rounded-md object-cover flex-shrink-0 shadow-sm"
+                      >
+                      <div v-else class="w-9 h-9 rounded-md bg-surface-raised flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                      </div>
+
+                      <!-- Track Info -->
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-text truncate">{{ entry.name }}</p>
+                        <p class="text-xs text-text-secondary truncate">{{ entry.subtitle }}</p>
+                      </div>
+
+                      <!-- Duration -->
+                      <span class="text-xs text-text-secondary flex-shrink-0">{{ entry.duration }}</span>
+                    </div>
+
+                    <!-- More tracks indicator -->
+                    <div v-if="loadedTrackCount(playlist) > 5" class="text-center pt-1">
+                      <p class="text-xs text-text-secondary opacity-60">
+                        + {{ loadedTrackCount(playlist) - 5 }} weitere Tracks
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Bottom gradient fade -->
+            <div class="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-surface/80 to-transparent rounded-b-xl" />
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card mb-6">
+          <div class="card-header">
+            <h2 class="card-title">Inhalte &amp; Filter</h2>
+            <p class="card-description">Diese Auswahl wird beim Export tatsächlich angewendet</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label
+              v-for="option in filterOptions"
+              :key="option.key"
+              class="flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors"
+              :class="filters[option.key]
+                ? 'border-brand bg-primary-500/10'
+                : 'border-border hover:border-brand/50'"
+            >
+              <input
+                v-model="filters[option.key]"
+                type="checkbox"
+                class="form-checkbox mt-0.5"
+              >
+              <div>
+                <p class="text-sm font-medium text-text">{{ option.label }}</p>
+                <p class="text-xs text-text-secondary mt-0.5">{{ option.hint }}</p>
+                <p v-if="option.count !== undefined" class="text-xs text-text-secondary mt-0.5">{{ option.count }} im Backup</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Export Format -->
+        <div class="card mb-6">
+          <div class="card-header">
+            <h2 class="card-title">Export-Format</h2>
+            <p class="card-description">Wähle das Format für dein Backup</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- JSON -->
+            <label
+              class="flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-200"
+              :class="exportFormat === 'json'
+                ? 'border-brand bg-primary-500/10 shadow-md'
+                : 'border-border hover:border-brand/50 hover:bg-surface-muted'"
+            >
+              <input v-model="exportFormat" value="json" type="radio" class="form-radio mt-0.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg">📄</span>
+                  <h3 class="font-semibold text-text">JSON</h3>
+                  <span v-if="exportFormat === 'json'" class="text-xs bg-primary-500 text-on-primary px-1.5 py-0.5 rounded-full">Aktiv</span>
+                </div>
+                <p class="text-sm text-text-secondary mt-1">Vollständige Daten, maschinenlesbar</p>
+              </div>
+            </label>
+
+            <!-- CSV -->
+            <label
+              class="flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-200"
+              :class="exportFormat === 'csv'
+                ? 'border-brand bg-primary-500/10 shadow-md'
+                : 'border-border hover:border-brand/50 hover:bg-surface-muted'"
+            >
+              <input v-model="exportFormat" value="csv" type="radio" class="form-radio mt-0.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg">📊</span>
+                  <h3 class="font-semibold text-text">CSV</h3>
+                  <span v-if="exportFormat === 'csv'" class="text-xs bg-primary-500 text-on-primary px-1.5 py-0.5 rounded-full">Aktiv</span>
+                </div>
+                <p class="text-sm text-text-secondary mt-1">Für Excel & Tabellen</p>
+              </div>
+            </label>
+
+            <!-- M3U -->
+            <label
+              class="flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-200"
+              :class="exportFormat === 'm3u'
+                ? 'border-brand bg-primary-500/10 shadow-md'
+                : 'border-border hover:border-brand/50 hover:bg-surface-muted'"
+            >
+              <input v-model="exportFormat" value="m3u" type="radio" class="form-radio mt-0.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg">🎵</span>
+                  <h3 class="font-semibold text-text">M3U</h3>
+                  <span v-if="exportFormat === 'm3u'" class="text-xs bg-primary-500 text-on-primary px-1.5 py-0.5 rounded-full">Aktiv</span>
+                </div>
+                <p class="text-sm text-text-secondary mt-1">Playlist-Dateien für Player</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex justify-between items-center">
+          <router-link to="/backup" class="btn-ghost">
+            ← Zurück
+          </router-link>
+          <button
+            :disabled="selectedPlaylists.length === 0"
+            class="btn-primary px-6"
+            @click="startBackup"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Exportieren ({{ selectedPlaylists.length }} Playlists)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useSpotifyAuth } from '@/composables/useSpotifyAuth'
+import { useBackupStore } from '@/stores/backup'
+import { useAppStore } from '@/stores/app'
+import { defaultBackupFilters } from '@/services/backup-format'
+import type { BackupFilters, ExportFormat, SpotifyEpisode, SpotifyPlaylist, SpotifyTrack } from '@/types'
+
+const { user } = useSpotifyAuth()
+const backupStore = useBackupStore()
+const appStore = useAppStore()
+
+// State
+const allPlaylists = ref<SpotifyPlaylist[]>([])
+const selectedPlaylists = ref<string[]>([])
+const expandedPlaylists = ref<string[]>([])
+const searchQuery = ref('')
+const exportFormat = ref<ExportFormat>('json')
+const filters = ref<BackupFilters>(defaultBackupFilters())
+
+interface FilterOption {
+  key: keyof BackupFilters
+  label: string
+  hint: string
+  /** Number of entries in the backup, shown like on the import page. Undefined where a count makes no sense. */
+  count?: number
+}
+
+// Counts of the library contents, same wording as on the import page
+const savedTracksCount = computed(() => backupStore.backupData?.savedTracks?.length ?? 0)
+const savedAlbumsCount = computed(() => backupStore.backupData?.savedAlbums?.length ?? 0)
+const followedArtistsCount = computed(() => backupStore.backupData?.followedArtists?.length ?? 0)
+
+const filterOptions = computed<FilterOption[]>(() => [
+  { key: 'onlyOwnPlaylists', label: 'Nur eigene Playlists', hint: 'Abonnierte fremde Playlists auslassen' },
+  { key: 'includePublicPlaylists', label: 'Öffentliche Playlists', hint: 'Playlists mit öffentlichem Status' },
+  { key: 'includePrivatePlaylists', label: 'Private Playlists', hint: 'Nur für dich sichtbare Playlists' },
+  { key: 'includeCollaborativePlaylists', label: 'Kollaborative Playlists', hint: 'Gemeinsam bearbeitete Playlists' },
+  { key: 'includeSavedTracks', label: 'Gespeicherte Songs', hint: 'Deine Liked Songs', count: savedTracksCount.value },
+  { key: 'includeSavedAlbums', label: 'Gespeicherte Alben', hint: 'Deine Bibliothek an Alben', count: savedAlbumsCount.value },
+  { key: 'includeFollowedArtists', label: 'Gefolgte Künstler', hint: 'Artists, denen du folgst', count: followedArtistsCount.value },
+  { key: 'includeMetadata', label: 'Metadaten', hint: 'Beschreibungen und Coverbilder mitspeichern' }
+])
+
+// Computed
+const visiblePlaylists = computed(() => {
+  return allPlaylists.value.filter(playlist => {
+    if (filters.value.onlyOwnPlaylists && playlist.owner?.id !== user.value?.id) return false
+    if (playlist.collaborative) return filters.value.includeCollaborativePlaylists
+    if (playlist.public) return filters.value.includePublicPlaylists
+    return filters.value.includePrivatePlaylists
+  })
+})
+
+const filteredPlaylists = computed(() => {
+  if (!searchQuery.value) return visiblePlaylists.value
+
+  const q = searchQuery.value.toLowerCase()
+  return visiblePlaylists.value.filter(playlist => playlist.name.toLowerCase().includes(q))
+})
+
+const ownPlaylistsCount = computed(() =>
+  allPlaylists.value.filter(p => p.owner?.id === user.value?.id).length
+)
+
+const loadedTrackCount = (playlist: SpotifyPlaylist): number =>
+  playlist.tracks?.items?.length ?? playlist.tracks?.total ?? 0
+
+const selectedTracksCount = computed(() => {
+  return selectedPlaylists.value.reduce((sum, id) => {
+    const playlist = allPlaylists.value.find(p => p.id === id)
+    return sum + (playlist ? loadedTrackCount(playlist) : 0)
+  }, 0)
+})
+
+// Methods
+const formatDuration = (trackCount: number) => {
+  const estimatedMinutes = trackCount * 3.5
+  if (estimatedMinutes < 60) return `~${Math.round(estimatedMinutes)} min`
+  const hours = Math.floor(estimatedMinutes / 60)
+  const minutes = Math.round(estimatedMinutes % 60)
+  return `~${hours}h ${minutes}min`
+}
+
+const formatMs = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+interface PreviewEntry {
+  key: string
+  name: string
+  subtitle: string
+  imageUrl: string | null
+  duration: string
+}
+
+const isEpisode = (item: SpotifyTrack | SpotifyEpisode): item is SpotifyEpisode =>
+  (item as SpotifyEpisode).type === 'episode'
+
+// Playlist items are SpotifyPlaylistItem since backup format 2.1: the content sits in `item`
+const previewEntries = (playlist: SpotifyPlaylist): PreviewEntry[] => {
+  return (playlist.tracks?.items ?? []).slice(0, 5).map((entry, index) => {
+    const item = entry.item
+    if (!item) {
+      return { key: `${playlist.id}-${index}`, name: 'Nicht mehr verfügbar', subtitle: '', imageUrl: null, duration: '' }
+    }
+
+    const images = isEpisode(item) ? [] : item.album?.images ?? []
+    return {
+      key: `${playlist.id}-${item.id || index}`,
+      name: item.name,
+      subtitle: isEpisode(item)
+        ? 'Podcast-Episode'
+        : item.artists.map(a => a.name).join(', ') + (entry.is_local ? ' · Lokale Datei' : ''),
+      imageUrl: images.length > 0 ? images[images.length - 1].url : null,
+      duration: formatMs(item.duration_ms ?? 0)
+    }
+  })
+}
+
+const selectAllPlaylists = () => {
+  selectedPlaylists.value = filteredPlaylists.value.map(p => p.id)
+}
+
+const deselectAllPlaylists = () => {
+  selectedPlaylists.value = []
+}
+
+const togglePlaylistSelection = (playlistId: string) => {
+  const index = selectedPlaylists.value.indexOf(playlistId)
+  if (index > -1) {
+    selectedPlaylists.value.splice(index, 1)
+  } else {
+    selectedPlaylists.value.push(playlistId)
+  }
+}
+
+const toggleExpanded = (playlistId: string) => {
+  const index = expandedPlaylists.value.indexOf(playlistId)
+  if (index > -1) {
+    expandedPlaylists.value.splice(index, 1)
+  } else {
+    expandedPlaylists.value.push(playlistId)
+  }
+}
+
+const startBackup = async () => {
+  if (!backupStore.backupData) {
+    appStore.showError(
+      'Fehler',
+      'Keine Backup-Daten verfügbar. Bitte erstelle zuerst ein vollständiges Backup.'
+    )
+    return
+  }
+
+  try {
+    const options = {
+      selectedPlaylists: selectedPlaylists.value,
+      filters: filters.value,
+      exportFormat: exportFormat.value
+    }
+    backupStore.setBackupOptions(options)
+
+    // Selection and filters are applied before the export, not afterwards
+    const exportData = backupStore.buildExportData(backupStore.backupData, options)
+
+    switch (exportFormat.value) {
+      case 'json':
+        backupStore.downloadBackup(exportData)
+        break
+      case 'csv':
+        await backupStore.downloadBackupAsCSV(exportData)
+        break
+      case 'm3u':
+        await backupStore.downloadBackupAsM3U(exportData)
+        break
+    }
+
+    appStore.showSuccess(
+      'Export erfolgreich',
+      `${exportData.metadata.totalPlaylists} Playlists und ${exportData.metadata.totalTracks} Tracks wurden als ${exportFormat.value.toUpperCase()} exportiert.`
+    )
+  } catch (error) {
+    console.error('Export failed:', error)
+    appStore.showError('Export fehlgeschlagen', 'Der Export konnte nicht abgeschlossen werden.')
+  }
+}
+
+onMounted(() => {
+  if (backupStore.backupData?.playlists) {
+    allPlaylists.value = backupStore.backupData.playlists
+    filters.value = { ...backupStore.backupOptions.filters }
+    // Select all own playlists by default
+    selectedPlaylists.value = allPlaylists.value
+      .filter(p => p.owner?.id === user.value?.id)
+      .map(p => p.id)
+  } else {
+    appStore.showError(
+      'Fehler',
+      'Keine Playlist-Daten verfügbar. Bitte erstelle zuerst ein vollständiges Backup.'
+    )
+  }
+})
+</script>

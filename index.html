@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Content Security Policy (Header-Variante inkl. frame-ancestors siehe deploy/backspin.caddy) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.scdn.co https://*.spotifycdn.com; font-src 'self'; connect-src 'self' https://api.spotify.com https://accounts.spotify.com; base-uri 'self'; form-action 'self' https://accounts.spotify.com; object-src 'none'; upgrade-insecure-requests" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-512.png" />
+    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Applies the stored theme before the first paint, see public/theme-init.js -->
+    <script src="/theme-init.js"></script>
+    <meta name="description" content="Sichere deine Spotify-Daten in 3 einfachen Schritten. 100% kostenlos, keine Datenspeicherung, moderne Web-App." />
+    <meta name="keywords" content="Spotify, Backup, Playlist, Musik, Export, Import, Datenschutz" />
+    <meta name="author" content="Backspin" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Backspin - Spotify Backup Tool" />
+    <meta property="og:description" content="Sichere deine Spotify-Daten in 3 einfachen Schritten. 100% kostenlos, keine Datenspeicherung." />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Backspin - Spotify Backup Tool" />
+    <meta property="twitter:description" content="Sichere deine Spotify-Daten in 3 einfachen Schritten. 100% kostenlos, keine Datenspeicherung." />
+    <meta property="twitter:image" content="/og-image.png" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#E6A62E" />
+    <meta name="msapplication-TileColor" content="#E6A62E" />
+    
+    <title>Backspin - Spotify Backup Tool</title>
+  </head>
+  <body class="bg-background text-text">
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+

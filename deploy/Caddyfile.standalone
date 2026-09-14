@@ -1,0 +1,23 @@
+# Vollstaendiges Caddyfile fuer einen Host, auf dem Caddy direkt aus dem
+# Internet erreichbar ist und die Zertifikate selbst holt (Auto-HTTPS).
+# Kein "http://"-Praefix: Caddy besorgt ein Let's-Encrypt-Zertifikat fuer
+# <deine-domain> und leitet Port 80 auf 443 um.
+#
+# Voraussetzung: Port 80 und 443 sind von aussen erreichbar und der
+# A/AAAA-Record von <deine-domain> zeigt auf diesen Host.
+#
+# Anzupassen:
+#   1. <deine-domain> durch die eigene Domain ersetzen.
+#   2. E-Mail fuer Let's-Encrypt-Benachrichtigungen eintragen.
+#   3. Den Pfad im import auf den Ablageort von backspin.caddy setzen.
+#   4. Falls das Build-Verzeichnis nicht /opt/backspin/dist ist, den
+#      root-Pfad in backspin.caddy anpassen.
+{
+	email admin@<deine-domain>
+}
+
+import /etc/caddy/backspin.caddy
+
+<deine-domain> {
+	import backspin
+}

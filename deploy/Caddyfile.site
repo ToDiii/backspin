@@ -1,0 +1,23 @@
+# Site-Block zum Einfuegen in ein bestehendes Caddyfile.
+#
+# Gedacht fuer einen Host, der schon andere Seiten ausliefert und extern
+# hinter einem Tunnel (zum Beispiel Cloudflare) haengt: TLS terminiert der
+# Tunnel, Caddy spricht intern nur HTTP. Im globalen Optionsblock des Hosts
+# steht dafuer "auto_https off", und der Site-Block bekommt hier das
+# ausdrueckliche Praefix "http://", damit Caddy keine Weiterleitung auf
+# https baut.
+#
+# Anzupassen:
+#   1. <deine-domain> durch die eigene Domain ersetzen (ohne https://).
+#   2. Den Pfad im import auf den Ablageort von backspin.caddy setzen.
+#   3. Falls das Build-Verzeichnis nicht /opt/backspin/dist ist, den
+#      root-Pfad in backspin.caddy anpassen.
+#
+# Der import der Snippet-Datei muss im bestehenden Caddyfile auf oberster
+# Ebene stehen und vor dem Site-Block kommen, der den Snippet verwendet.
+
+import /etc/caddy/backspin.caddy
+
+http://<deine-domain> {
+	import backspin
+}

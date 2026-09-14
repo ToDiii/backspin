@@ -1,0 +1,78 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Werkzeugketten, die nur gemeinsam eine gueltige Peer-Kombination ergeben.
+      # Ohne Gruppierung reisst jeder Major einen eigenen, nicht lauffaehigen PR auf.
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
+      eslint:
+        patterns:
+          - eslint
+          - "@eslint/*"
+          - eslint-plugin-vue
+          - "@vue/eslint-config-typescript"
+      typescript:
+        patterns:
+          - typescript
+          - vue-tsc
+      vite:
+        patterns:
+          - vite
+          - "@vitejs/*"
+      tailwind:
+        patterns:
+          - tailwindcss
+          - "@tailwindcss/*"
+          - postcss
+          - autoprefixer
+      # Muss nach "eslint" stehen: Dependabot nimmt die erste passende Gruppe,
+      # sonst zoege "@vue/*" das @vue/eslint-config-typescript aus der eslint-Gruppe.
+      # Deshalb hier keine Wildcard, sondern die drei tatsaechlich genutzten Pakete.
+      vue:
+        patterns:
+          - vue
+          - vue-router
+          - "@vue/test-utils"
+      pinia:
+        patterns:
+          - pinia
+          - "@pinia/*"
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Tailwind 4 ist ein Umbau der Konfiguration und des Theme-Layers, kein Update.
+      - dependency-name: tailwindcss
+        update-types:
+          - version-update:semver-major
+      # TypeScript 7 wird von typescript-eslint noch nicht unterstuetzt.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      # Vite 8 wechselt auf Rolldown; erst nach eigener Pruefung heben.
+      - dependency-name: vite
+        update-types:
+          - version-update:semver-major
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore

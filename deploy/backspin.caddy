@@ -1,0 +1,45 @@
+# Gemeinsamer Caddy-Snippet fuer Backspin.
+#
+# Diese Datei enthaelt die komplette Auslieferungslogik (Wurzelverzeichnis,
+# Kompression, Security-Header, Cache-Regeln, SPA-Fallback) und wird von
+# Caddyfile.site und Caddyfile.standalone per "import" eingebunden. So stehen
+# die Header nur an einer Stelle.
+#
+# Anzupassen:
+#   - root: Pfad zum Build-Verzeichnis, falls nicht /opt/backspin/dist.
+#
+# Wichtig: Die Content-Security-Policy steht doppelt im Projekt, hier als
+# Header und zusaetzlich als <meta http-equiv> in index.html. Beide Stellen
+# muessen uebereinstimmen, sonst greift beim Nutzer die jeweils strengere.
+
+(backspin) {
+	root * /opt/backspin/dist
+
+	encode gzip zstd
+
+	# Security-Header fuer alle Antworten.
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.scdn.co https://*.spotifycdn.com; font-src 'self'; connect-src 'self' https://api.spotify.com https://accounts.spotify.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.spotify.com; object-src 'none'; upgrade-insecure-requests"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	# Gehashte Build-Artefakte unter /assets/: ein Jahr, unveraenderlich.
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+
+	# Alles andere ist die App-Shell. Der Header-Schritt laeuft vor try_files,
+	# der Matcher sieht also noch die urspruengliche URL. Deshalb wird hier
+	# nicht nur / und /index.html abgedeckt, sondern jede SPA-Route, die
+	# gleich auf /index.html umgeschrieben wird.
+	# "no-cache" heisst nicht "nicht speichern", sondern "vor der
+	# Wiederverwendung revalidieren"; Caddy beantwortet das per ETag mit 304.
+	@shell not path /assets/*
+	header @shell Cache-Control "no-cache"
+
+	# SPA-Fallback: existierende Datei ausliefern, sonst die App-Shell.
+	try_files {path} /index.html
+	file_server
+}
