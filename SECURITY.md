@@ -25,7 +25,7 @@ Bitte keine sensiblen Details öffentlich posten, also insbesondere nicht in ein
   - Access-Tokens werden mit 60 Sekunden Vorlauf als abgelaufen behandelt und erneuert; Token-Werte werden nie geloggt.
 
 ## Security-Header
-Der Webserver setzt die Header für alle Pfade. Die mitgelieferte Konfiguration dafür ist der Caddy-Snippet `deploy/backspin.caddy` (eingebunden über `deploy/Caddyfile.site` oder `deploy/Caddyfile.standalone`, Anleitung in `deploy/README.md`). Zusätzlich steht die CSP als `<meta http-equiv>` in `index.html`, damit sie auch bei anderen Hostern greift (ohne `frame-ancestors`, das ist per Meta-Tag wirkungslos):
+Der Webserver setzt die Header für alle Pfade. Mitgeliefert sind zwei gleichwertige Konfigurationen, eine je Auslieferung: der Caddy-Snippet `deploy/backspin.caddy` für den eigenen Host (eingebunden über `deploy/Caddyfile.site` oder `deploy/Caddyfile.standalone`) und `public/_headers` für Cloudflare Pages, das Vite unverändert nach `dist/` kopiert; Anleitung zu beiden in `deploy/README.md`. Zusätzlich steht die CSP als `<meta http-equiv>` in `index.html`, damit sie auch bei anderen Hostern greift (ohne `frame-ancestors`, das ist per Meta-Tag wirkungslos). `src/__tests__/security-headers.test.ts` vergleicht die drei Fassungen bei jedem Testlauf, damit sie nicht auseinanderlaufen:
 - `Content-Security-Policy`: `default-src 'self'`, Skripte nur von `'self'` (kein `unsafe-inline`), Styles zusätzlich `'unsafe-inline'` (Vue- und Tailwind-Inline-Styles), Bilder von `'self'`, `data:` sowie den Spotify-Bild-CDNs `*.scdn.co` und `*.spotifycdn.com`, Schriften nur von `'self'`, Verbindungen nur zu `api.spotify.com` und `accounts.spotify.com`, `form-action 'self' https://accounts.spotify.com`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `upgrade-insecure-requests`.
 - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
 - Die gehashten Build-Artefakte unter `/assets/` werden mit `Cache-Control: public, max-age=31536000, immutable` ausgeliefert, alles andere (die App-Shell, also `/`, `/index.html` und jede SPA-Route) mit `no-cache`.
@@ -38,4 +38,4 @@ Der Webserver setzt die Header für alle Pfade. Die mitgelieferte Konfiguration 
 ## Empfehlungen für Beiträge
 - Keine Secrets in Commits oder in der README.
 - `npm run type-check && npm run lint && npm test && npm run build` lokal ausführen, bevor PRs erstellt werden.
-- Neue externe Quellen (Skripte, Schriften, Bilder, API-Hosts) brauchen einen CSP-Eintrag an zwei Stellen: `deploy/backspin.caddy` und `index.html`.
+- Neue externe Quellen (Skripte, Schriften, Bilder, API-Hosts) brauchen einen CSP-Eintrag an drei Stellen: `deploy/backspin.caddy`, `public/_headers` und `index.html`. Fehlt eine davon, schlägt `src/__tests__/security-headers.test.ts` an.

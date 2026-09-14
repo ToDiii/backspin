@@ -193,7 +193,7 @@ npm run build
 # dist/ Ordner auf deinen Webserver hochladen
 ```
 
-Zwei Dinge muss der Webserver dabei leisten: Er muss unbekannte Pfade auf `index.html` zurückführen (SPA-Fallback), sonst laufen Direktaufrufe wie `/callback` ins Leere, und er sollte die Security-Header setzen.
+Zwei Dinge muss der Webserver dabei leisten: Er muss unbekannte Pfade auf `index.html` zurückführen (SPA-Fallback), sonst laufen Direktaufrufe wie `/callback` ins Leere, und er sollte die Security-Header setzen. Für beide Aufgaben liegen fertige Konfigurationen bei — als Caddy-Snippet für einen eigenen Host und als `_headers`/`_redirects` für Cloudflare Pages.
 
 ### Caddy (empfohlen)
 
@@ -205,6 +205,14 @@ Die vollständige Konfiguration liegt in [`deploy/`](deploy/), die Anleitung Sch
 - `deploy/deploy.sh` holt auf dem Host den neuesten `main`-Stand, baut nach `dist/` und lädt Caddy neu.
 
 Kurzfassung: Repository nach `/opt/backspin` klonen, `npm ci && npm run build`, den Snippet nach `/etc/caddy/` kopieren, den Site-Block ins Caddyfile eintragen, `systemctl reload caddy`. Spätere Updates laufen über `deploy/deploy.sh`.
+
+### Cloudflare Pages (ohne eigenen Server)
+
+Wer keinen Host betreiben will, lässt Cloudflare Pages das Repository bauen. Im Dashboard unter **Workers & Pages → Create → Pages → Connect to Git** das Repository verbinden, als Build-Befehl `npm run build` und als Ausgabeverzeichnis `dist` eintragen — mehr ist nicht nötig, Umgebungsvariablen braucht die App keine.
+
+SPA-Fallback und Security-Header greifen dabei von selbst: `public/_redirects` und `public/_headers` landen über Vite unverändert in `dist/`, und Pages liest sie von dort. Die Header entsprechen denen des Caddy-Snippets. Schritt für Schritt steht das in [`deploy/README.md`](deploy/README.md#cloudflare-pages-als-alternative-zum-eigenen-server).
+
+Beide Wege sind unabhängig voneinander und können nebeneinander laufen. In beiden Fällen muss die jeweilige Redirect-URI (`https://<deine-domain>/callback` beziehungsweise `https://<dein-projekt>.pages.dev/callback`) im Spotify Developer Dashboard eingetragen sein; Spotify erlaubt mehrere.
 
 ### Erster Lauf nach einem Update
 
@@ -231,7 +239,7 @@ Diese Liste einmal nach jedem Deploy durchgehen. Sie prüft genau die Stellen, d
 - **PKCE OAuth Flow** - OAuth 2.0 mit PKCE (S256) und `state`-Parameter, ohne Client Secret
 - **Client-seitige Verarbeitung** - Keine Server-Intermediäre, kein eigenes Backend
 - **HTTPS Only** - Verschlüsselte Verbindungen, `Strict-Transport-Security` und `upgrade-insecure-requests`
-- **Content Security Policy** - gesetzt in `deploy/backspin.caddy` als Header und zusätzlich als `<meta http-equiv>` in `index.html`, damit sie auch bei anderen Hostern greift. Verbindungen sind auf `api.spotify.com` und `accounts.spotify.com` begrenzt, Skripte auf die eigene Herkunft. Dazu `X-Content-Type-Options`, `X-Frame-Options`, `frame-ancestors 'none'`, `Referrer-Policy` und `Permissions-Policy`.
+- **Content Security Policy** - gesetzt als Header in `deploy/backspin.caddy` (eigener Host) und in `public/_headers` (Cloudflare Pages), zusätzlich als `<meta http-equiv>` in `index.html`, damit sie auch bei anderen Hostern greift. `src/__tests__/security-headers.test.ts` hält die drei Fassungen deckungsgleich. Verbindungen sind auf `api.spotify.com` und `accounts.spotify.com` begrenzt, Skripte auf die eigene Herkunft. Dazu `X-Content-Type-Options`, `X-Frame-Options`, `frame-ancestors 'none'`, `Referrer-Policy` und `Permissions-Policy`.
 - **Keine Drittanbieter-Ressourcen** - die Schrift Inter liegt im eigenen Bundle, Google Fonts wird nicht geladen
 - **Token-Haltung** - Der Access-Token bleibt ausschließlich im Arbeitsspeicher, der Refresh-Token liegt im `sessionStorage` und ist mit dem Schließen des Tabs weg. Im `localStorage` stehen nur Client-ID, Redirect-URI und Theme-Präferenz.
 - **Geprüfter Import** - hochgeladene Backup-Dateien werden vor der Verarbeitung auf Größe (max. 50 MB), Dateityp, gültiges JSON und Struktur geprüft

@@ -8,9 +8,11 @@
 # Anzupassen:
 #   - root: Pfad zum Build-Verzeichnis, falls nicht /opt/backspin/dist.
 #
-# Wichtig: Die Content-Security-Policy steht doppelt im Projekt, hier als
-# Header und zusaetzlich als <meta http-equiv> in index.html. Beide Stellen
-# muessen uebereinstimmen, sonst greift beim Nutzer die jeweils strengere.
+# Wichtig: Die Content-Security-Policy steht dreifach im Projekt - hier als
+# Header, genauso in public/_headers fuer die Auslieferung ueber Cloudflare
+# Pages, und als <meta http-equiv> in index.html. Alle drei muessen
+# uebereinstimmen, sonst greift beim Nutzer die jeweils strengere.
+# src/__tests__/security-headers.test.ts vergleicht sie bei jedem Testlauf.
 
 (backspin) {
 	root * /opt/backspin/dist

@@ -20,7 +20,7 @@ Dieses Repository ist `ToDiii/backspin`; das Projekt geht auf `MaximilianRTS/Spo
 | Styling | Tailwind CSS 3.4 (+ forms, typography), PostCSS, `darkMode: 'class'` |
 | Lint | ESLint 10 mit Flat Config (`eslint.config.js`): `@eslint/js` recommended + `eslint-plugin-vue` `flat/recommended` + `@vue/eslint-config-typescript` |
 | Tests | Vitest 5 mit `happy-dom`, `@vue/test-utils`, `@pinia/testing`, Coverage über `@vitest/coverage-v8` |
-| Hosting | Statisches `dist/` hinter Caddy 2 (SPA-Fallback `try_files {path} /index.html`), Konfiguration in `deploy/` |
+| Hosting | Zwei Auslieferungen desselben `dist/`: Caddy 2 auf einem eigenen Host (SPA-Fallback `try_files {path} /index.html`, Konfiguration in `deploy/`) und Cloudflare Pages (`public/_headers`, `public/_redirects`, gebaut aus dem Repository) |
 | Node | >= 22.12 (`engines`, von Vite 7 und Vitest 5 gefordert); CI liest `.nvmrc`, aktuell 22 |
 | Sonstige Laufzeit-Deps | `jszip` (ZIP-Exporte), `@fontsource/inter` (selbst gehostete Schrift) |
 
@@ -58,7 +58,7 @@ Deploy auf dem Host: `deploy/deploy.sh` (fetch, reset --hard, `npm ci`, Build, `
   `validate-backup`, `export`, `client-id` und `auth-errors`, die Stores `auth`/`backup`/`import`/`theme`,
   die Views `BackupView`, `BackupPreviewView`, `ImportView`, `LandingView`, `SetupView` und `CallbackView`
   (`src/views/__tests__/`) sowie `App.vue`,
-  die Routen-Titel aus `src/main.ts` und das Theme (`src/__tests__/`).
+  die Routen-Titel aus `src/main.ts`, die Security-Header (`security-headers.test.ts`, siehe unten) und das Theme (`src/__tests__/`).
   Die drei Theme-Tests arbeiten am Quelltext statt am DOM: `theme-contrast.test.ts` liest die Tokens aus
   `src/style.css` und rechnet die WCAG-Kontraste nach, `theme-tokens.test.ts` durchsucht alle `.vue`-Dateien
   nach Farben aus Tailwinds fester Palette, `theme-init.test.ts` führt `public/theme-init.js` per `new Function`
@@ -143,7 +143,9 @@ Deploy auf dem Host: `deploy/deploy.sh` (fetch, reset --hard, `npm ci`, Build, `
 │       └── index.ts           # Alle Spotify- und App-Typen (SpotifyPlaylist, BackupData, …)
 ├── tests/                     # Browser-Tests außerhalb von `npm test`
 │   └── layout-overflow.test.ts #   kein horizontaler Overflow bei 320/375/414 px
-├── public/                    # Statische Assets
+├── public/                    # Statische Assets; Vite kopiert alles unveraendert nach dist/
+│   ├── _headers               #   Cloudflare Pages: sechs Security-Header + Cache-Regeln (= backspin.caddy)
+│   ├── _redirects             #   Cloudflare Pages: SPA-Fallback `/* /index.html 200`
 │   ├── favicon.svg            #   Wort-/Bildmarke: Platte mit Rille und Backspin-Pfeil, Bernstein-Kachel
 │   ├── icon-512.png           #   dieselbe Marke als PNG (apple-touch-icon)
 │   ├── og-image.png           #   Vorschaubild für og:image und twitter:image
@@ -242,7 +244,9 @@ Deploy auf dem Host: `deploy/deploy.sh` (fetch, reset --hard, `npm ci`, Build, `
 
 **Sicherheit**
 - Kein Client-Secret, keine API-Keys im Repo oder in `.env`. Die Client-ID gibt der Nutzer in der App ein.
-- Security-Header liefert der Webserver über `deploy/backspin.caddy`, die CSP steht zusätzlich als `<meta http-equiv>` in `index.html`. Keine Drittanbieter-Ressourcen: Inter kommt selbst gehostet aus `@fontsource/inter` (in `src/main.ts` importiert), Google Fonts ist entfernt. Neue externe Quellen brauchen einen CSP-Eintrag an beiden Stellen.
+- Security-Header liefert der Webserver: `deploy/backspin.caddy` für den eigenen Host, `public/_headers` für Cloudflare Pages. Die CSP steht zusätzlich als `<meta http-equiv>` in `index.html`. Keine Drittanbieter-Ressourcen: Inter kommt selbst gehostet aus `@fontsource/inter` (in `src/main.ts` importiert), Google Fonts ist entfernt.
+- **Die CSP steht an drei Stellen und darf nicht auseinanderlaufen.** Eine neue externe Quelle gehört in alle drei: `deploy/backspin.caddy`, `public/_headers` und `index.html`. `src/__tests__/security-headers.test.ts` vergleicht sie bei jedem Lauf — die beiden Header-Fassungen zeichengleich, den Meta-Tag bis auf `frame-ancestors`, das per Meta-Tag wirkungslos ist. Derselbe Test deckt die übrigen fünf Security-Header, die beiden Cache-Regeln und den SPA-Fallback ab.
+- In `public/_headers` erbt eine Anfrage die Header **aller** passenden Regeln, gleichnamige werden mit Komma angehängt statt ersetzt. `/assets/*` setzt deshalb erst `! Cache-Control` und dann den eigenen Wert; ohne die Zeile gewänne das `no-cache` aus `/*`.
 - Hochgeladene Backup-Dateien laufen zuerst durch `validateBackupFile` (`src/services/validate-backup.ts`), danach durch `normalizeBackup`.
 - Spotify-API-Endpunkte: lesend `/v1/me`, `/v1/me/playlists`, `/v1/playlists/{id}/items`, `/v1/me/tracks`, `/v1/me/albums`, `/v1/me/following`; schreibend `POST /v1/me/playlists`, `POST /v1/playlists/{id}/items` (max. 100 URIs), `PUT /v1/me/library?uris=` und `GET /v1/me/library/contains?uris=` (max. 40 URIs). Deprecated Endpunkte (`/v1/users/{id}/playlists`, `PUT /me/tracks`) nicht verwenden; `PUT /v1/me/following?type=artist&ids=` nur als Fallback fürs Folgen von Künstlern (die Spec listet Artist-URIs nicht für `PUT /me/library`).
 - Scopes (`SCOPES` in `composables/useSpotifyAuth.ts`): Lesen `playlist-read-private`, `playlist-read-collaborative`, `user-library-read`, `user-follow-read`, `user-read-private`, `user-read-email`; Schreiben (Import) `playlist-modify-public`, `playlist-modify-private`, `user-library-modify`, `user-follow-modify` (Liste auch in `IMPORT_SCOPES`, `stores/auth.ts`). Eine Änderung der Liste zwingt alle Nutzer zu einem erneuten Login. Die erteilten Scopes stehen nach dem Login in `authStore.grantedScopes`, geprüft über `hasImportScopes`.
