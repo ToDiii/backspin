@@ -1,9 +1,13 @@
-# Deployment mit Caddy
+# Deployment
 
 Backspin ist eine reine Client-App. Es gibt kein Backend und keine
 Datenbank; ein Deploy besteht darin, das Repository zu bauen und das erzeugte
 `dist/` statisch auszuliefern. Diese Anleitung beschreibt den Weg über
-[Caddy 2](https://caddyserver.com/) auf einem Linux-Host.
+[Caddy 2](https://caddyserver.com/) auf einem Linux-Host; wer keinen eigenen
+Server betreiben will, findet unter
+[Cloudflare Pages](#cloudflare-pages-als-alternative-zum-eigenen-server) den
+zweiten Weg. Beide sind voneinander unabhängig und können nebeneinander
+laufen.
 
 ## Dateien in diesem Verzeichnis
 
@@ -13,6 +17,10 @@ Datenbank; ein Deploy besteht darin, das Repository zu bauen und das erzeugte
 | `Caddyfile.site` | Site-Block zum Einfügen in ein bestehendes Caddyfile. Für Hosts hinter einem Tunnel (TLS extern, Caddy intern nur HTTP). |
 | `Caddyfile.standalone` | Vollständiges Caddyfile für einen Host, auf dem Caddy selbst Auto-HTTPS macht. |
 | `deploy.sh` | Update-Skript für den Host: neuesten `main`-Stand holen, bauen, Caddy neu laden. |
+
+Die Gegenstücke für Cloudflare Pages liegen nicht hier, sondern in `public/`,
+weil Vite dieses Verzeichnis unverändert nach `dist/` kopiert und Pages die
+Dateien genau dort erwartet: `public/_headers` und `public/_redirects`.
 
 Beide Caddyfiles enthalten denselben Inhalt und unterscheiden sich nur darin,
 wie die Adresse notiert ist. `<deine-domain>` ist überall ein Platzhalter: In
@@ -225,18 +233,89 @@ eine Kopie des Repository-Stands.
 Für regelmäßige Deploys eignet sich ein systemd-Timer oder ein Cron-Eintrag,
 der `deploy.sh` aufruft.
 
-## Content Security Policy an zwei Stellen
+## Cloudflare Pages als Alternative zum eigenen Server
 
-Die CSP steht doppelt im Projekt:
+Cloudflare Pages baut das Repository selbst und liefert das Ergebnis aus. Es
+braucht dafür keinen Host, keinen Tunnel und kein `deploy.sh`; die Caddy-Variante
+bleibt davon unberührt und kann parallel weiterlaufen.
 
-1. als Header in `deploy/backspin.caddy`
-2. als `<meta http-equiv="Content-Security-Policy">` in `index.html`
+Einrichtung im Cloudflare-Dashboard unter **Workers & Pages → Create → Pages →
+Connect to Git**:
 
-Das ist Absicht: Der Meta-Tag greift auch dann, wenn die Seite von einem
-anderen Host ohne passende Header ausgeliefert wird. Beide Stellen müssen
-inhaltlich übereinstimmen. Wer eine neue externe Quelle einbindet, also ein
-Skript, eine Schrift, eine Bildquelle oder einen API-Host, muss sie in beiden
-Dateien eintragen. Zwei unterschiedliche Policies heben sich nicht auf,
-sondern gelten beide, und der Browser wendet jeweils die strengere an.
+1. Das Repository verbinden und als Produktions-Branch `main` wählen.
+2. Build-Befehl: `npm run build`
+3. Ausgabeverzeichnis: `dist`
+4. Framework-Voreinstellung: keine (beziehungsweise „None“). Vite ist als
+   Voreinstellung zwar vorhanden, setzt aber nur dieselben zwei Werte.
 
-`frame-ancestors` ist im Meta-Tag wirkungslos und steht deshalb nur im Header.
+Umgebungsvariablen sind nicht nötig. `VITE_APP_URL` bleibt leer, die App leitet
+ihre Redirect-URI dann zur Laufzeit aus `window.location.origin` ab — unter
+`backspin.pages.dev` also genau diese Adresse. Node liest Pages aus `.nvmrc`;
+wenn nicht, stellt man `NODE_VERSION` auf `22`.
+
+Danach baut Pages bei jedem Push auf `main` und veröffentlicht unter
+`backspin.pages.dev`, Branches und Pull Requests zusätzlich unter eigenen
+Vorschau-Adressen.
+
+**`_headers` und `_redirects` greifen automatisch.** Beide liegen in `public/`,
+Vite kopiert sie unverändert nach `dist/`, und Pages liest sie beim Deploy aus
+dem Ausgabeverzeichnis. Es ist also nichts im Dashboard zu konfigurieren:
+
+- `public/_redirects` enthält den SPA-Fallback `/*  /index.html  200`. Ohne ihn
+  beantwortet Pages jeden Direktaufruf einer Route mit 404 — auch `/callback`,
+  die Rücksprungadresse des OAuth-Flows, womit keine Anmeldung zustande käme.
+  `200` ist eine Umschreibung und keine Weiterleitung: Die Adresszeile bleibt
+  stehen, Code und `state` aus der Spotify-Antwort überleben. Eine tatsächlich
+  vorhandene Datei gewinnt gegen die Regel, `/assets/…` wird also weiterhin
+  direkt ausgeliefert.
+- `public/_headers` trägt dieselben sechs Security-Header und dieselben zwei
+  Cache-Regeln wie `deploy/backspin.caddy`.
+
+Eine Besonderheit von Pages steht im `_headers`-Kommentar und sei hier
+wiederholt, weil sie leicht zu übersehen ist: Eine Anfrage, die auf mehrere
+Regeln passt, erbt die Header **aller** Treffer, und ein gleichnamiger Header
+wird dabei mit Komma angehängt statt ersetzt. `/assets/…` passt auf `/*` und auf
+`/assets/*`; ohne das vorangestellte `! Cache-Control` käme dort
+`no-cache, public, max-age=31536000, immutable` heraus, und `no-cache` würde
+gewinnen — das Jahr Cache wäre still weg.
+
+Kontrollieren lassen sich beide Punkte nach dem ersten Deploy so:
+
+```bash
+curl -I https://backspin.pages.dev/
+curl -sI "https://backspin.pages.dev/assets/$(curl -s https://backspin.pages.dev/ \
+  | grep -o '/assets/[^"]*\.js' | head -1)" | grep -i cache-control
+curl -o /dev/null -w '%{http_code}\n' -s https://backspin.pages.dev/callback
+```
+
+Erwartet werden dieselben Header wie im Abschnitt „Header kontrollieren“,
+`cache-control: public, max-age=31536000, immutable` für die Datei unter
+`/assets/` und `200` für `/callback`.
+
+Im Spotify Developer Dashboard muss `https://backspin.pages.dev/callback` als
+Redirect URI eingetragen sein — zeichengenau und zusätzlich zu der des eigenen
+Hosts. Spotify erlaubt mehrere.
+
+## Content Security Policy an drei Stellen
+
+Die CSP steht dreifach im Projekt:
+
+1. als Header in `deploy/backspin.caddy` (eigener Server)
+2. als Header in `public/_headers` (Cloudflare Pages)
+3. als `<meta http-equiv="Content-Security-Policy">` in `index.html`
+
+Das ist Absicht: Jede Auslieferung braucht ihre eigene Header-Datei, und der
+Meta-Tag greift auch dann, wenn die Seite von einem dritten Host ganz ohne
+passende Header ausgeliefert wird. Alle drei Stellen müssen inhaltlich
+übereinstimmen. Wer eine neue externe Quelle einbindet, also ein Skript, eine
+Schrift, eine Bildquelle oder einen API-Host, muss sie überall eintragen.
+Unterschiedliche Policies heben sich nicht auf, sondern gelten beide, und der
+Browser wendet jeweils die strengere an.
+
+`frame-ancestors` ist im Meta-Tag wirkungslos und steht deshalb nur in den
+beiden Header-Varianten.
+
+Damit das nicht auseinanderläuft, vergleicht `src/__tests__/security-headers.test.ts`
+die drei Policies bei jedem `npm test` — die beiden Header-Fassungen zeichengleich,
+den Meta-Tag bis auf `frame-ancestors`. Derselbe Test deckt die übrigen fünf
+Security-Header, die beiden Cache-Regeln und den SPA-Fallback ab.

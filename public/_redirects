@@ -1,0 +1,14 @@
+# Cloudflare Pages: SPA-Fallback. Die App haelt alle Routen im Browser
+# (vue-router im History-Modus), auf dem Server existiert nur index.html.
+# Ohne diese Zeile beantwortet Pages jeden Direktaufruf einer Route mit 404 -
+# auch /callback, die Ruecksprungadresse des OAuth-Flows, womit keine Anmeldung
+# zustande kaeme.
+#
+# 200 ist eine Umschreibung, keine Weiterleitung: Die Adresszeile bleibt stehen,
+# der Browser bekommt die App-Shell, und vue-router entscheidet, was er zeigt.
+# Eine tatsaechlich vorhandene Datei gewinnt gegen diese Regel, /assets/... und
+# /favicon.svg werden also weiterhin direkt ausgeliefert.
+#
+# Gegenstueck zu "try_files {path} /index.html" in deploy/backspin.caddy.
+
+/*    /index.html    200
